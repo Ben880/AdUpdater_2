@@ -1,0 +1,13 @@
+{
+    "project_name": "AdUpdater_2",
+    "process_name": "PPTVIEW.EXE",
+    "update_timer": 10,
+    "exit_timer": 10,
+    "power_point": "Civic_PowerPoint.ppsx",
+    "power_point_shortcut": "Civic_PowerPoint-s",
+    "verification_file": "Downstairs_Verification.txt",
+    "print_keep_alive": true,
+    "local_folder": "powerpoints",
+    "pid_file": "clientdaemon.pid"
+
+}
