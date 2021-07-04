@@ -1,5 +1,8 @@
 {
     "project_name": "AdUpdater_2",
+    "client_name": "downstairs",
+    "host": "127.0.0.1",
+    "port": 65432,
     "process_name": "PPTVIEW.EXE",
     "update_timer": 10,
     "exit_timer": 10,
@@ -7,7 +10,8 @@
     "power_point_shortcut": "Civic_PowerPoint-s",
     "verification_file": "Downstairs_Verification.txt",
     "print_keep_alive": true,
-    "local_folder": "powerpoints",
-    "pid_file": "clientdaemon.pid"
+    "local_powerpoints": "ClientPowerPoints",
+    "pid_file": "clientdaemon.pid",
+    "respect_pid": false
 
 }
