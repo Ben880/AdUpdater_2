@@ -11,11 +11,10 @@
 # ======================================================================================================================
 import json
 import os
+import socket
 from SharedAssets import Tools
-import select
+from _thread import *
 import threading
-import socketserver
-
 from SharedAssets.ClientList import ClientList, ClientInfo
 from SharedAssets.Config import Config as Config
 
@@ -38,57 +37,47 @@ client_list = ClientList()
 # ======================================================================================================================
 # =============================== func logic ===========================================================================
 # ======================================================================================================================
-class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
-    connect = True
+def client_thread(c):
+    name = ""
+    try:
+        while True:
+            # data received from client
+            packet = str(c.recv(1024), "utf-8")
+            json_data = json.loads(packet)
+            rpc_name = json_data["rpc"]
+            rpc_data = json_data["data"]
+            if rpc_name == "CLOSE_CONNECTION":
+                Tools.format_print(f"Closed connection: {rpc_data}", name)
+                break
+            elif rpc_name == "CONNECT":
+                name = rpc_data
+                Tools.format_print(f"Client connected", name)
+                client_list.add_client(ClientInfo(name, c))
 
-    def setup(self):
-        Tools.format_print("ThreadedTCPRequestHandler Started")
-        client = ClientInfo("None", self)
-        client_list.add_client(client)
-
-    def handle(self):
-        while self.connect:
-            r,w,e = select.select([self.request],[],[],0.01)
-            for rs in r:
-                if rs == self.request:
-                    packet = str(self.request.recv(1024), "utf-8")
-                    json_data = json.loads(packet)
-                    rpc_name = json_data["rpc"]
-                    rpc_data = json_data["data"]
-                    if rpc_name == "CLOSE_CONNECTION":
-                        return
-                    elif rpc_name == "CONNECT":
-                        Tools.format_print(f"Client connected name:{rpc_data}")
-                        client_info: ClientInfo = client_list.get_client(self)
-                        client_info.set_name(rpc_data)
-
-    def send(self, packet):
-        server.sen
-
-    def finish(self):
-        Tools.format_print("ThreadedTCPRequestHandler Ended")
-
-
-class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
-    pass
-
-
-def passtime():
-    pass
+    except ConnectionResetError:
+        Tools.format_print(f"ConnectionResetError", name)
+    finally:
+        client_list.remove_client(c)
+        c.close()
 
 
 # ======================================================================================================================
 # =============================== main logic ===========================================================================
 # ======================================================================================================================
 Tools.format_print(f"Running {projectName}:Client")
-# Create threaded server
-server = ThreadedTCPServer((host, port), ThreadedTCPRequestHandler)
-ip, port = server.server_address
-server_thread = threading.Thread(target=server.serve_forever)
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((host, port))
+Tools.format_print(f"Socket bound to port: {port}")
+s.listen(5)
+Tools.format_print(f"Socket is listening on port: {port}")
 # start server
-server_thread.daemon = True
-server_thread.start()
-Tools.format_print("Server Started")
-while server_thread:
-    passtime()
+
+while True:
+    # establish connection with client
+    c, addr = s.accept()
+    # lock acquired by client
+    Tools.format_print(f"Connected to: {addr[0]}:{addr[1]}")
+    # Start a new thread and return its identifier
+    start_new_thread(client_thread, (c,))
+s.close()
 
