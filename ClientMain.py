@@ -40,7 +40,8 @@ verificationFile = cfg.getVal("verification_file")
 printKeepAlive = cfg.getVal("print_keep_alive")
 updateTimer = cfg.getVal("update_timer")
 process_name = cfg.getVal("process_name")
-localPowerpoints = cwd + "/" + cfg.getVal("local_powerpoints")
+localPowerpoints = os.path.join(cwd, cfg.getVal("local_powerpoints"))
+path_to_powerpoint = os.path.join(cwd, cfg.getVal("local_powerpoints"), powerPoint)
 pidFile = cfg.getVal("pid_file")
 respect_pid = cfg.getVal("respect_pid")
 client_name = cfg.getVal("client_name")
@@ -119,9 +120,10 @@ def updateVerification():
     f.close()
     # TODO: logic for updating main server
 
-def send_packet(server, packet):
+
+def send_packet(server, rpc: str, data: str):
+    packet = {"rpc": rpc, "data": data}
     server.sendall(bytes(json.dumps(packet), "utf-8"))
-    rpc = packet["rpc"]
     Tools.format_print(f"sent rpc:{rpc}")
 
 
@@ -134,14 +136,21 @@ def MAINLOOP():
     PORT = 65432  # The port used by the server
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.connect((HOST, PORT))
-    send_packet(server, {"rpc": "CONNECT", "data": client_name})
+    send_packet(server, "CONNECT", client_name)
     while EXIT_STATUS == 1:
-        data = server.recv(1024)
-        fetch_file()
+        packet = str(server.recv(1024), "utf-8")
+        json_data = json.loads(packet)
+        rpc_name = json_data["rpc"]
+        rpc_data = json_data["data"]
+        Tools.format_print(f"Received rpc: {rpc_name}")
+        if rpc_name == "CHECK_VERSION":
+            time = os.path.getmtime(path_to_powerpoint)
+            send_packet(server, "CURRENT_VERSION", str(time))
+
     Tools.format_print(f"Main loop finished with exit code: {EXIT_STATUS}")
-    send_packet(server, {"rpc": "CLOSE_CONNECTION", "data": client_name})
+    send_packet(server, "CLOSE_CONNECTION", client_name)
     server.close()
-    print('Received', str(data, "utf-8"))
+
 
 
 # ======================================================================================================================
