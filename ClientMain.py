@@ -101,7 +101,6 @@ def fetch_file():
     # grab remote file and start power point then verify update
     # TODO: grab remote file
     start_show()
-    updateVerification()
     Tools.format_print("Fetch file complete")
 
 
@@ -113,18 +112,10 @@ def start_show():
         Tools.format_print("No show to start")
 
 
-def updateVerification():
-    Tools.format_print("Updating verification")
-    f = open(os.path.join(localPowerpoints, verificationFile), "w")
-    f.write(Tools.date_time())
-    f.close()
-    # TODO: logic for updating main server
-
-
 def send_packet(server, rpc: str, data: str):
     packet = {"rpc": rpc, "data": data}
     server.sendall(bytes(json.dumps(packet), "utf-8"))
-    Tools.format_print(f"sent rpc:{rpc}")
+    Tools.format_print(f"sent rpc: {rpc}")
 
 
 def MAINLOOP():
@@ -150,7 +141,6 @@ def MAINLOOP():
     Tools.format_print(f"Main loop finished with exit code: {EXIT_STATUS}")
     send_packet(server, "CLOSE_CONNECTION", client_name)
     server.close()
-
 
 
 # ======================================================================================================================

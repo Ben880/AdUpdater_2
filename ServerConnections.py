@@ -8,7 +8,7 @@ from SharedAssets.ClientList import ClientList
 class ClientConnection:
 
     name = "un-def"
-    last_updated = ""
+    last_updated = "NA"
 
     def __init__(self, connection, client_list: ClientList):
         self.connection = connection
@@ -31,6 +31,8 @@ class ClientConnection:
             self.name = rpc_data
             self.client_list.add_client(self)
             self.send_packet("CHECK_VERSION", "null")
+        elif rpc_name == "CURRENT_VERSION":
+            self.last_updated = rpc_data
 
     def update(self):
         packet = str(self.connection.recv(1024), "utf-8")
