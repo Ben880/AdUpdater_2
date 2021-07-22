@@ -1,3 +1,10 @@
+# ======================================================================================================================
+# By: Benjamin Wilcox (bwilcox@ltu.edu),
+# AdUpdater_2- 6/2/2021
+# ======================================================================================================================
+# Description:
+# UI for server
+# ======================================================================================================================
 import tkinter as tk
 import time
 from ServerConnections import ClientConnection
@@ -5,18 +12,15 @@ from SharedAssets import Tools
 from SharedAssets.ClientList import ClientList
 
 
+# ======================================================================================================================
+# =============================== Client Group =========================================================================
+# ======================================================================================================================
+
+# Creates and handles a group of ui elements for each client
 class ClientGroup:
 
     def __init__(self, window, client_connection: ClientConnection, parent):
-        class Counter:
-            def __init__(self, start=0):
-                self.c = start
-            def add(self):
-                self.c+=1
-                return self.c
-            def same(self):
-                return self.c
-        row = Counter()
+        row = Tools.Counter()
         # set vars
         Tools.format_print(f"New client group created for {client_connection.name}", "UI")
         self.parent = parent
@@ -66,6 +70,12 @@ class ClientGroup:
             self.client_connection.send_packet("STOP_SHOW", "")
 
 
+# ======================================================================================================================
+# =============================== Main UI ==============================================================================
+# ======================================================================================================================
+
+# handles main window and client groups
+
 class UI:
 
     client_groups = {}
@@ -107,6 +117,11 @@ class UI:
             self.client_change()
 
 
+# ======================================================================================================================
+# =============================== Thread Function ======================================================================
+# ======================================================================================================================
+
+# function to be called to create new thread
 def server_ui_thread(client_list: ClientList):
     window = tk.Tk()
     ui = UI(window, client_list)
