@@ -7,32 +7,68 @@ from SharedAssets.ClientList import ClientList
 
 class ClientGroup:
 
-    def __init__(self, window, client_connection: ClientConnection):
+    def __init__(self, window, client_connection: ClientConnection, parent):
+        class Counter:
+            def __init__(self, start=0):
+                self.c = start
+            def add(self):
+                self.c+=1
+                return self.c
+            def same(self):
+                return self.c
+        row = Counter()
+        # set vars
+        Tools.format_print(f"New client group created for {client_connection.name}", "UI")
+        self.parent = parent
         self.client_connection = client_connection
         # label frame
         self.label_frame = tk.LabelFrame(window, text=client_connection.name)
-        self.label_frame.pack()
-        # button
-        self.button = tk.Button(self.label_frame, text="send to server", command=lambda: self.handle_click())
-        self.button.pack()
+        self.label_frame.grid(column=1, row=2, sticky="we")
+        # Connected
+        self.connected = tk.Label(self.label_frame)
+        self.connected.grid(column=0, row=row.c, sticky="we")
+        # show running
+        self.show_running = tk.Label(self.label_frame)
+        self.show_running.grid(column=0, row=row.add(), sticky="we")
         # last  updated
         self.last_updated = tk.Label(self.label_frame)
-        self.last_updated.pack()
+        self.last_updated.config(text=f"Last Updated: {time.ctime(float(self.client_connection.last_updated))}")
+        self.last_updated.grid(column=0, row=row.add(), sticky="w")
+        # show stop/start
+        self.btn_start = tk.Button(self.label_frame, text="start show", command=lambda: self.event_start_show())
+        self.btn_start.grid(column=0, row=row.add(), sticky="w")
+        self.btn_end = tk.Button(self.label_frame, text="end show", command=lambda: self.event_stop_show())
+        self.btn_end.grid(column=1, row=row.same(), sticky="w")
 
     def update(self):
-        self.last_updated.config(text=f"Last Updated:\n{time.ctime(float(self.client_connection.last_updated))}")
+        if self.client_connection.connected:
+            self.connected.config(text=f"Connected", bg="green")
+        else:
+            self.connected.config(text="Disconnected", bg="red")
 
-    def handle_click(self):
-        self.client_connection.send_packet("UIRPC", "test")
+    def set_grid(self, num: int):
+        self.label_frame.grid(column=1, row=num+1)
 
     def destroy(self):
         self.button.destroy()
         self.label_frame.destroy()
 
+    # ===========
+    # button handlers
+    # =============
+
+    def event_start_show(self):
+        if self.client_connection.connected:
+            self.client_connection.send_packet("START_SHOW", "")
+
+    def event_stop_show(self):
+        if self.client_connection.connected:
+            self.client_connection.send_packet("STOP_SHOW", "")
+
 
 class UI:
 
-    cui_dict = {}
+    client_groups = {}
     client_list = None
     window = None
 
@@ -40,30 +76,35 @@ class UI:
         self.window = window
         self.client_list = client_list
         self.window.title('Ad Updater')
+        self.window.geometry("300x400")
+        self.window.columnconfigure(1, weight=1)
         greeting = tk.Label(self.window, text="This is a message")
-        text = tk.Label(text="")
-        greeting.pack()
-        text.pack()
+        client_list.subscribe_update("UI")
 
     def add_client_group(self, client_connection: ClientConnection):
-        self.cui_dict[client_connection.name] = ClientGroup(self.window, client_connection)
+        self.client_groups[client_connection.name] = ClientGroup(self.window, client_connection, self)
+        i = 0
+        for key in self.client_groups.keys():
+            self.client_groups[key].set_grid(i)
+            i = 1 + i
 
-    def check_groups(self):
-        groups = self.cui_dict.keys()
+    def remove_client_group(self, name: str):
+        self.client_groups.pop(name)
+
+    def client_change(self):
+        Tools.format_print("Client change, updating list", "UI")
+        groups = self.client_groups.keys()
         clients = self.client_list.get_clients().keys()
-        if not len(groups) == len(clients):
-            extra_keys = groups - clients
-            for item in extra_keys:
-                self.cui_dict.pop(str(item))
-            extra_clients = clients - groups
-            for item in extra_clients:
-                Tools.format_print(item, "UI_Thread")
-                self.add_client_group(self.client_list.get_clients()[str(item)])
+        extra_clients = clients - groups
+        for item in extra_clients:
+            Tools.format_print(item, "UI_Thread")
+            self.add_client_group(self.client_list.get_clients()[str(item)])
 
     def update(self):
-        self.check_groups()
-        for key in self.cui_dict.keys():
-            self.cui_dict[key].update()
+        for key in self.client_groups.keys():
+            self.client_groups[key].update()
+        if self.client_list.is_updated("UI"):
+            self.client_change()
 
 
 def server_ui_thread(client_list: ClientList):

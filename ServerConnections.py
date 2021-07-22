@@ -9,6 +9,10 @@ class ClientConnection:
 
     name = "un-def"
     last_updated = "NA"
+    last_contact = ""
+    show_start_time=""
+    show_running = False
+    connected = True
 
     def __init__(self, connection, client_list: ClientList):
         self.connection = connection
@@ -25,6 +29,7 @@ class ClientConnection:
         rpc_data = json_data["data"]
         if rpc_name == "CLOSE_CONNECTION":
             Tools.format_print(f"Closed connection: {rpc_data}", self.name)
+            self.connected = False
             return False
         elif rpc_name == "CONNECT":
             Tools.format_print(f"Client connected", rpc_data)
@@ -33,6 +38,8 @@ class ClientConnection:
             self.send_packet("CHECK_VERSION", "null")
         elif rpc_name == "CURRENT_VERSION":
             self.last_updated = rpc_data
+        elif rpc_name == "SHOW_START_TIME":
+            self.show_start_time = rpc_data
 
     def update(self):
         packet = str(self.connection.recv(1024), "utf-8")
@@ -45,9 +52,10 @@ def client_thread(c, client_list: ClientList):
         while True:
             client_connection.update()
     except ConnectionResetError:
-        Tools.format_print(f"ConnectionResetError", client_connection.client_info.get_name())
+        Tools.format_print(f"ConnectionResetError", client_connection.name)
+        client_connection.connected=False
     finally:
-        client_list.remove_client(c)
+        client_list.remove_client(client_connection.name)
         c.close()
 
 

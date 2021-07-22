@@ -1,3 +1,2 @@
-start python ClientMain.py
-start python ClientMain.py
-pause
+start python ClientMain.py new1
+start python ClientMain.py new2

@@ -1,2 +1,1 @@
 python ServerMain.py
-pause

@@ -93,7 +93,6 @@ def delete_powerpoint():
         Tools.format_print(f"No such file {powerPoint}")
 
 
-
 def fetch_file():
     Tools.format_print("Fetching new power point")
     stop_shows()
@@ -106,8 +105,9 @@ def fetch_file():
 
 def start_show():
     Tools.format_print("Starting the power point")
-    if os.path.isfile(localPowerpoints + powerPoint):
-        subprocess.call("start " + shortcutFile, shell=True)
+    power_point_dir = os.path.join(localPowerpoints, powerPoint)
+    if os.path.isfile(power_point_dir):
+        os.system(f'cmd /c "start {power_point_dir}"')
     else:
         Tools.format_print("No show to start")
 
@@ -116,6 +116,23 @@ def send_packet(server, rpc: str, data: str):
     packet = {"rpc": rpc, "data": data}
     server.sendall(bytes(json.dumps(packet), "utf-8"))
     Tools.format_print(f"sent rpc: {rpc}")
+
+
+def handle_packet(packet, server):
+    json_data = json.loads(packet)
+    rpc_name = json_data["rpc"]
+    rpc_data = json_data["data"]
+    Tools.format_print(f"Received rpc: {rpc_name}")
+    if rpc_name == "CHECK_VERSION":
+        ptime = os.path.getmtime(path_to_powerpoint)
+        send_packet(server, "CURRENT_VERSION", str(ptime))
+    if rpc_name == "START_SHOW":
+        start_show()
+        stime = time.time()
+        send_packet(server, "SHOW_START_TIME", str(stime))
+    if rpc_name == "END_SHOW":
+        pass
+        # TODO add stuff
 
 
 def MAINLOOP():
@@ -130,14 +147,7 @@ def MAINLOOP():
     send_packet(server, "CONNECT", client_name)
     while EXIT_STATUS == 1:
         packet = str(server.recv(1024), "utf-8")
-        json_data = json.loads(packet)
-        rpc_name = json_data["rpc"]
-        rpc_data = json_data["data"]
-        Tools.format_print(f"Received rpc: {rpc_name}")
-        if rpc_name == "CHECK_VERSION":
-            time = os.path.getmtime(path_to_powerpoint)
-            send_packet(server, "CURRENT_VERSION", str(time))
-
+        handle_packet(packet, server)
     Tools.format_print(f"Main loop finished with exit code: {EXIT_STATUS}")
     send_packet(server, "CLOSE_CONNECTION", client_name)
     server.close()
@@ -146,6 +156,8 @@ def MAINLOOP():
 # ======================================================================================================================
 # =============================== main logic ===========================================================================
 # ======================================================================================================================
+if len(sys.argv[1:]) > 0:
+    client_name = sys.argv[1:][0]
 # if pid file exists print and close
 if respect_pid and os.path.isfile(pidFile):
     Tools.format_print("pid file already exists, exiting")
@@ -159,6 +171,8 @@ else:
 try:
     Tools.format_print(f"Running {projectName}:Client")
     MAINLOOP()
+except:
+    Tools.format_print(f"Unexpected error: {sys.exc_info()[0]}")
 finally:
     Tools.format_print("Exiting")
     Tools.format_print(f"Removing pid file: {pidFile}")
