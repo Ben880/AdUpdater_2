@@ -29,22 +29,22 @@ class ClientGroup:
         self.label_frame = tk.LabelFrame(window, text=client_connection.name)
         self.label_frame.grid(column=1, row=2, sticky="we")
         # Connected
-        self.connected = tk.Label(self.label_frame)
-        self.connected.grid(column=0, row=row.same(), sticky="we")
+        self.connected = tk.Label(self.label_frame, anchor="w")
+        self.connected.grid(column=0, row=row.same(), columnspan=3, sticky="we")
         # show running
-        self.show_running = tk.Label(self.label_frame)
-        self.show_running.grid(column=0, row=row.add(), sticky="we")
+        self.show_running = tk.Label(self.label_frame, anchor="w")
+        self.show_running.grid(column=0, row=row.add(), columnspan=3, sticky="we")
         # last  updated
         self.last_updated = tk.Label(self.label_frame)
         self.last_updated.config(text=f"Last Updated: {time.ctime(float(self.client_connection.last_updated))}")
-        self.last_updated.grid(column=0, row=row.add(), sticky="w")
+        self.last_updated.grid(column=0, row=row.add(), sticky="w", columnspan=3)
         # show stop/start
         self.btn_start = tk.Button(self.label_frame, text="start show", command=lambda: self.event_start_show())
         self.btn_start.grid(column=0, row=row.add(), sticky="w")
         self.btn_end = tk.Button(self.label_frame, text="end show", command=lambda: self.event_stop_show())
         self.btn_end.grid(column=1, row=row.same(), sticky="w")
         self.btn_check = tk.Button(self.label_frame, text="check status", command=lambda: self.event_check_show())
-        self.btn_check.grid(column=2, row=row.add(), sticky="w")
+        self.btn_check.grid(column=2, row=row.same(), sticky="w")
 
     def update(self):
         if self.client_connection.connected:

@@ -5,10 +5,6 @@
 # Description:
 # Handles connection with ad clients
 # ======================================================================================================================
-
-# ======================================================================================================================
-# =============================== imports ==============================================================================
-# ======================================================================================================================
 import os
 from ServerConnections import accept_clients
 from ServerUI import server_ui_thread as ui_thread
@@ -40,7 +36,7 @@ ui.start()
 # start the server thread
 server = threading.Thread(target=accept_clients, args=(host, port, client_list,))
 server.start()
-# main loop act as message broker?
+# main loop
 MAINLOOP = True
 while MAINLOOP:
     pass
