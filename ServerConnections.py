@@ -38,8 +38,13 @@ class ClientConnection:
             self.send_packet("CHECK_VERSION", "null")
         elif rpc_name == "CURRENT_VERSION":
             self.last_updated = rpc_data
-        elif rpc_name == "SHOW_START_TIME":
+        elif rpc_name == "START_SHOW_TIME":
             self.show_start_time = rpc_data
+            self.show_running = True
+        elif rpc_name == "STOP_SHOW_TIME":
+            self.show_running = False
+        elif rpc_name == "CHECK_SHOW_BASIC_RESPONSE":
+            self.show_running = rpc_data == "True"
 
     def update(self):
         packet = str(self.connection.recv(1024), "utf-8")

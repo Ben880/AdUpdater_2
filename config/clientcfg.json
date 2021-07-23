@@ -3,7 +3,7 @@
     "client_name": "downstairs",
     "host": "127.0.0.1",
     "port": 65432,
-    "process_name": "PPTVIEW.EXE",
+    "process_name": "POWERPNT.EXE",
     "update_timer": 10,
     "exit_timer": 10,
     "power_point": "Civic_PowerPoint.ppsx",

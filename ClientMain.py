@@ -19,12 +19,9 @@ from SharedAssets import Tools
 import os
 import sys
 from SharedAssets.Config import Config as Config
-
 # ======================================================================================================================
 # =============================== create vars ==========================================================================
 # ======================================================================================================================
-from SharedAssets.DeltaTime import DeltaTime
-
 cwd = os.getcwd()
 dir_path = os.path.dirname(os.path.realpath(__file__))
 pid = str(os.getpid())
@@ -50,27 +47,29 @@ client_name = cfg.getVal("client_name")
 # ======================================================================================================================
 # =============================== functions ============================================================================
 # ======================================================================================================================
-# get pids with process_name (cfg file)
-def getPID():
+
+# get all pid with target_name
+def get_pids_with_name(target_name):
     pid = list()
     for proc in psutil.process_iter():
-        if process_name in proc.name():
+        if target_name in proc.name():
             pid.append(proc.pid)
     return pid
 
 
-# get stats of pid list passed
-def getPIDStats(pid: list):
+# get stats of all pid from a list that is passed in
+def get_pid_stats(pid_list: list):
     stats = list()
-    for i in pid:
+    for i in pid_list:
         p = psutil.Process(i)
         s = p.status()
         stats.append((i, s))
     return stats
 
 
-def stop_shows():
-    pids = getPID()
+# stop found processes with name of target_name
+def stop_shows(target_name):
+    pids = get_pids_with_name(target_name)
     if len(pids) > 0:
         Tools.format_print(f"found {len(pids)} power points to end")
     else:
@@ -95,7 +94,7 @@ def delete_powerpoint():
 
 def fetch_file():
     Tools.format_print("Fetching new power point")
-    stop_shows()
+    stop_shows(process_name)
     delete_powerpoint()
     # grab remote file and start power point then verify update
     # TODO: grab remote file
@@ -103,6 +102,7 @@ def fetch_file():
     Tools.format_print("Fetch file complete")
 
 
+# start the power point if it exists
 def start_show():
     Tools.format_print("Starting the power point")
     power_point_dir = os.path.join(localPowerpoints, powerPoint)
@@ -112,12 +112,14 @@ def start_show():
         Tools.format_print("No show to start")
 
 
+# send a packet to the server
 def send_packet(server, rpc: str, data: str):
     packet = {"rpc": rpc, "data": data}
     server.sendall(bytes(json.dumps(packet), "utf-8"))
     Tools.format_print(f"sent rpc: {rpc}")
 
 
+# handle an incoming packet
 def handle_packet(packet, server):
     json_data = json.loads(packet)
     rpc_name = json_data["rpc"]
@@ -129,13 +131,22 @@ def handle_packet(packet, server):
     if rpc_name == "START_SHOW":
         start_show()
         stime = time.time()
-        send_packet(server, "SHOW_START_TIME", str(stime))
-    if rpc_name == "END_SHOW":
-        pass
-        # TODO add stuff
+        send_packet(server, "START_SHOW_TIME", str(stime))
+    if rpc_name == "STOP_SHOW":
+        stop_shows(process_name)
+        stime = time.time()
+        send_packet(server, "STOP_SHOW_TIME", str(stime))
+    if rpc_name == "CHECK_SHOW_BASIC":
+        shows = get_pids_with_name(process_name)
+        data = len(get_pid_stats(shows)) > 0
+        send_packet(server, "CHECK_SHOW_BASIC_RESPONSE", str(data))
 
 
-def MAINLOOP():
+# ======================================================================================================================
+# =============================== Main Loop ============================================================================
+# ======================================================================================================================
+
+def main_loop():
     if Tools.is_dir_mk(localPowerpoints):
         if not os.path.isfile(localPowerpoints + powerPoint):
             Tools.format_print("Power point does not exist")
@@ -170,7 +181,7 @@ else:
 # try main loop and finally remove pid file
 try:
     Tools.format_print(f"Running {projectName}:Client")
-    MAINLOOP()
+    main_loop()
 except:
     Tools.format_print(f"Unexpected error: {sys.exc_info()[0]}")
 finally:

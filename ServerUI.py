@@ -30,7 +30,7 @@ class ClientGroup:
         self.label_frame.grid(column=1, row=2, sticky="we")
         # Connected
         self.connected = tk.Label(self.label_frame)
-        self.connected.grid(column=0, row=row.c, sticky="we")
+        self.connected.grid(column=0, row=row.same(), sticky="we")
         # show running
         self.show_running = tk.Label(self.label_frame)
         self.show_running.grid(column=0, row=row.add(), sticky="we")
@@ -43,12 +43,18 @@ class ClientGroup:
         self.btn_start.grid(column=0, row=row.add(), sticky="w")
         self.btn_end = tk.Button(self.label_frame, text="end show", command=lambda: self.event_stop_show())
         self.btn_end.grid(column=1, row=row.same(), sticky="w")
+        self.btn_check = tk.Button(self.label_frame, text="check status", command=lambda: self.event_check_show())
+        self.btn_check.grid(column=2, row=row.add(), sticky="w")
 
     def update(self):
         if self.client_connection.connected:
             self.connected.config(text=f"Connected", bg="green")
         else:
             self.connected.config(text="Disconnected", bg="red")
+        if self.client_connection.show_running:
+            self.show_running.config(text=f"Power point: running", bg="green")
+        else:
+            self.show_running.config(text="Power point: stopped", bg="red")
 
     def set_grid(self, num: int):
         self.label_frame.grid(column=1, row=num+1)
@@ -68,6 +74,10 @@ class ClientGroup:
     def event_stop_show(self):
         if self.client_connection.connected:
             self.client_connection.send_packet("STOP_SHOW", "")
+
+    def event_check_show(self):
+        if self.client_connection.connected:
+            self.client_connection.send_packet("CHECK_SHOW_BASIC", "")
 
 
 # ======================================================================================================================
