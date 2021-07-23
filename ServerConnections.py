@@ -7,12 +7,16 @@ from SharedAssets.ClientList import ClientList
 
 class ClientConnection:
 
+    # client info
     name = "un-def"
-    last_updated = "NA"
-    last_contact = ""
-    show_start_time=""
-    show_running = False
+    # connection info
     connected = True
+    last_contact = ""
+    # show info
+    last_updated = "NA"
+    show_start_time = ""
+    show_stop_time = ""
+    show_running = False
 
     def __init__(self, connection, client_list: ClientList):
         self.connection = connection
@@ -42,6 +46,7 @@ class ClientConnection:
             self.show_start_time = rpc_data
             self.show_running = True
         elif rpc_name == "STOP_SHOW_TIME":
+            self.show_stop_time = rpc_data
             self.show_running = False
         elif rpc_name == "CHECK_SHOW_BASIC_RESPONSE":
             self.show_running = rpc_data == "True"

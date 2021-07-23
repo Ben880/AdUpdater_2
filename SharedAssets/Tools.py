@@ -65,3 +65,33 @@ class Counter:
 
     def same(self):
         return self.i
+
+
+# ======================================================================================================================
+# =================================== Time =============================================================================
+# ======================================================================================================================
+
+# gets difference between times and give an approximate string in response
+def approximate_time_difference(other_time):
+    now = time.time()
+    if isinstance(other_time, str) and not other_time == "":
+        then = float(other_time)
+        diff = now - then
+    elif isinstance(other_time, float):
+        diff = now - other_time
+    else:
+        return "unknown"
+    if diff < 55:
+        return "a few seconds"
+    elif diff < 110:
+        return "a minute"
+    elif diff < 600:
+        return "minutes"
+    elif diff < 1350:
+        return "fifteen min"
+    elif diff < 2700:
+        return "half an hour"
+    else:
+        hrs = round(diff / 3600)
+        return f"{hrs} hours"
+

@@ -48,19 +48,22 @@ class ClientGroup:
 
     def update(self):
         if self.client_connection.connected:
-            self.connected.config(text=f"Connected", bg="green")
+            self.connected.config(text=f"Client Connected", bg="green")
         else:
-            self.connected.config(text="Disconnected", bg="red")
+            self.connected.config(text="Client Disconnected", bg="red")
         if self.client_connection.show_running:
-            self.show_running.config(text=f"Power point: running", bg="green")
+            approximate_time = Tools.approximate_time_difference(self.client_connection.show_start_time)
+            self.show_running.config(text=f"Status: Running (for {approximate_time})", bg="green")
         else:
-            self.show_running.config(text="Power point: stopped", bg="red")
+            approximate_time = Tools.approximate_time_difference(self.client_connection.show_stop_time)
+            self.show_running.config(text=f"Status: Stopped (for {approximate_time})", bg="red")
 
+    # set grid position
     def set_grid(self, num: int):
         self.label_frame.grid(column=1, row=num+1)
 
+    # this should not be called
     def destroy(self):
-        self.button.destroy()
         self.label_frame.destroy()
 
     # ===========
@@ -98,15 +101,12 @@ class UI:
         self.window.title('Ad Updater')
         self.window.geometry("300x400")
         self.window.columnconfigure(1, weight=1)
-        greeting = tk.Label(self.window, text="This is a message")
+        self.counter = Tools.Counter()
         client_list.subscribe_update("UI")
 
     def add_client_group(self, client_connection: ClientConnection):
         self.client_groups[client_connection.name] = ClientGroup(self.window, client_connection, self)
-        i = 0
-        for key in self.client_groups.keys():
-            self.client_groups[key].set_grid(i)
-            i = 1 + i
+        self.client_groups[client_connection.name].set_grid(self.counter.add())
 
     def remove_client_group(self, name: str):
         self.client_groups.pop(name)
