@@ -1,8 +1,14 @@
+import hashlib
 import json
+import os
 import socket
 import threading
+import datetime as dt
+import tqdm
+
 from SharedAssets import Tools
 from SharedAssets.ClientList import ClientList
+from SharedAssets.Config import Config
 
 
 class ClientConnection:
@@ -21,6 +27,62 @@ class ClientConnection:
     def __init__(self, connection, client_list: ClientList):
         self.connection = connection
         self.client_list = client_list
+        self.dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.cfg = Config(configFile="servercfg.json", fileDir=os.path.join(self.dir_path, "Config"))
+        self.cfg.load()
+        self.power_point_dir = os.path.join(self.dir_path, self.cfg.getVal("power_point_dir"))
+
+    def send_show(self, name: str):
+        named_dir = os.path.join(self.power_point_dir, name)
+        versions_dir = os.path.join(named_dir, "Versions")
+        if os.path.isdir(versions_dir):
+            filenames = next(os.walk(versions_dir), (None, None, []))[2]  # [] if no file
+            largest = (0,"")
+            for fname in filenames:
+                slp_ex = fname.split(".")
+                if slp_ex[1] == "ppsx":
+                    spl_t = slp_ex[0].split("-")
+                    time = dt.datetime(int(spl_t[0]),int(spl_t[1]),int(spl_t[2]),int(spl_t[3]),int(spl_t[4])).timestamp()
+                    if time > largest[0]:
+                        largest = (time, fname)
+            Tools.format_print(f"Most recent file: {largest[1]}")
+            self.send_packet("SEND_SHOW_NAME", largest[1])
+            file = os.path.join(versions_dir, largest[1])
+            self.send_packet("SEND_SHOW_SIZE", str(os.path.getsize(file)))
+            filesize = os.path.getsize(file)
+            SEPARATOR = "<SEPARATOR>"
+            self.connection.send(f"{file}{SEPARATOR}{filesize}".encode())
+            total = 0
+            with open(file, "rb") as f:
+                while True:
+                    # read the bytes from the file
+                    bytes_read = f.read(40960)
+                    if not bytes_read:
+                        # file transmitting is done
+                        break
+                    # we use sendall to assure transimission in
+                    # busy networks
+                    self.connection.sendall(bytes_read)
+                    total += len(bytes_read)
+                    Tools.format_print(f"sent ({total}/{filesize})")
+
+
+            """file = open(os.path.join(versions_dir, largest[1]))
+            f_bytes = file.read(1024)"""
+            """buff = bytes()
+            file = os.path.join(versions_dir, largest[1])
+            
+            with open(file, "rb") as f:
+                while byte := f.read(1):
+                    buff += byte
+                    if len(buff) >= 99000:
+                        self.connection.sendall(buff)
+                        buff = bytes()
+            self.send_packet("SEND_SHOW_END", hashlib.md5("filename.exe").hexdigest())"""
+            """while f_bytes:
+                self.connection.sendall(f_bytes)
+                f_bytes = file.read(1024)
+            file.close()"""
 
     def send_packet(self, rpc: str, data: str):
         s_packet = {"rpc": rpc, "data": data}
@@ -28,9 +90,13 @@ class ClientConnection:
         Tools.format_print(f"sent rpc:{rpc}", self.name)
 
     def handle_packet(self, packet):
-        json_data = json.loads(packet)
-        rpc_name = json_data["rpc"]
-        rpc_data = json_data["data"]
+        try:
+            json_data = json.loads(packet)
+            rpc_name = json_data["rpc"]
+            rpc_data = json_data["data"]
+        except:
+            rpc_name = ""
+            rpc_data = ""
         if rpc_name == "CLOSE_CONNECTION":
             Tools.format_print(f"Closed connection: {rpc_data}", self.name)
             self.connected = False
@@ -63,7 +129,7 @@ def client_thread(c, client_list: ClientList):
             client_connection.update()
     except ConnectionResetError:
         Tools.format_print(f"ConnectionResetError", client_connection.name)
-        client_connection.connected=False
+        client_connection.connected = False
     finally:
         client_list.remove_client(client_connection.name)
         c.close()

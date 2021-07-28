@@ -45,6 +45,9 @@ class ClientGroup:
         self.btn_end.grid(column=1, row=row.same(), sticky="w")
         self.btn_check = tk.Button(self.label_frame, text="check status", command=lambda: self.event_check_show())
         self.btn_check.grid(column=2, row=row.same(), sticky="w")
+        # send show
+        self.btn_check = tk.Button(self.label_frame, text="send show", command=lambda: self.event_send_show())
+        self.btn_check.grid(column=0, row=row.add(), sticky="w")
 
     def update(self):
         if self.client_connection.connected:
@@ -81,6 +84,10 @@ class ClientGroup:
     def event_check_show(self):
         if self.client_connection.connected:
             self.client_connection.send_packet("CHECK_SHOW_BASIC", "")
+
+    def event_send_show(self):
+        if self.client_connection.connected:
+            self.client_connection.send_show("Civic")
 
 
 # ======================================================================================================================

@@ -9,6 +9,7 @@
 # ======================================================================================================================
 # =============================== imports ==============================================================================
 # ======================================================================================================================
+import hashlib
 import json
 import socket
 import psutil
@@ -43,7 +44,11 @@ pidFile = cfg.getVal("pid_file")
 respect_pid = cfg.getVal("respect_pid")
 client_name = cfg.getVal("client_name")
 
-
+file_name_buffer = ""
+file_data_buffer = bytes()
+file_checksum_buffer = ""
+file_size_buffer = 0
+packet_is_bytes = False
 # ======================================================================================================================
 # =============================== functions ============================================================================
 # ======================================================================================================================
@@ -119,8 +124,44 @@ def send_packet(server, rpc: str, data: str):
     Tools.format_print(f"sent rpc: {rpc}")
 
 
+# decode packet
+def decode_packet(packet, server):
+    global file_name_buffer, file_data_buffer, file_checksum_buffer, file_size_buffer, packet_is_bytes
+    if not packet_is_bytes:
+        handle_packet(packet, server)
+    else:
+        """Tools.format_print(f"Receiving show data {len(file_data_buffer)}/{file_size_buffer}")
+        file_data_buffer += packet
+        if len(file_data_buffer) == file_size_buffer:
+            packet_is_bytes = False"""
+
+def handle_file(server):
+    global packet_is_bytes
+    Tools.format_print("Handling file")
+    packet = server.recv(4096).decode()
+    Tools.format_print("Receiving packet file")
+    filename, filesize = packet.split("<SEPARATOR>")
+    filename = os.path.basename(filename)
+    filesize = int(filesize)
+    Tools.format_print("Opening file")
+    total = 0
+    with open(filename, 'wb') as f:
+        while packet_is_bytes:
+            if total == filesize:
+                break
+            bytes_read = server.recv(40960)
+            if not bytes_read:
+                packet_is_bytes = False
+            # write to the file the bytes we just received
+            f.write(bytes_read)
+            total += len(bytes_read)
+            Tools.format_print(f"recieved ({total}/{filesize})")
+    packet_is_bytes = False
+
 # handle an incoming packet
-def handle_packet(packet, server):
+def handle_packet(byte_packet, server):
+    global file_name_buffer, file_data_buffer, file_checksum_buffer, file_size_buffer, packet_is_bytes
+    packet = str(byte_packet, "utf-8")
     json_data = json.loads(packet)
     rpc_name = json_data["rpc"]
     rpc_data = json_data["data"]
@@ -140,6 +181,23 @@ def handle_packet(packet, server):
         shows = get_pids_with_name(process_name)
         data = len(get_pid_stats(shows)) > 0
         send_packet(server, "CHECK_SHOW_BASIC_RESPONSE", str(data))
+    if rpc_name == "SEND_SHOW_NAME":
+        file_name_buffer = rpc_data
+    if rpc_name == "SEND_SHOW_SIZE":
+        file_size_buffer = rpc_data
+        packet_is_bytes = True
+        Tools.format_print("Switching to byte mode")
+    if rpc_name == "SEND_SHOW_END":
+        file_checksum_buffer = rpc_data
+        new_file_dir = os.path.join(localPowerpoints, file_name_buffer)
+        with open(new_file_dir, 'wb') as f:
+            f.write(file_data_buffer)
+        f.close()
+        if hashlib.md5(new_file_dir).hexdigest() == file_checksum_buffer:
+            Tools.format_print("File checksum matches")
+        else:
+            Tools.format_print("File checksum does not match")
+
 
 
 # ======================================================================================================================
@@ -157,8 +215,11 @@ def main_loop():
     server.connect((HOST, PORT))
     send_packet(server, "CONNECT", client_name)
     while EXIT_STATUS == 1:
-        packet = str(server.recv(1024), "utf-8")
-        handle_packet(packet, server)
+        if packet_is_bytes:
+            handle_file(server)
+        else:
+            packet = server.recv(1024)
+            handle_packet(packet, server)
     Tools.format_print(f"Main loop finished with exit code: {EXIT_STATUS}")
     send_packet(server, "CLOSE_CONNECTION", client_name)
     server.close()
@@ -182,8 +243,6 @@ else:
 try:
     Tools.format_print(f"Running {projectName}:Client")
     main_loop()
-except:
-    Tools.format_print(f"Unexpected error: {sys.exc_info()[0]}")
 finally:
     Tools.format_print("Exiting")
     Tools.format_print(f"Removing pid file: {pidFile}")
