@@ -15,16 +15,21 @@ import time
 # ======================================================================================================================
 
 # get date and time in string format
+from multiprocessing import Lock
+
+
 def date_time():
     return datetime.datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y %H:%M:%S')
 
+print_lock = Lock()
 
 # print outputs in formatted state with date-time and optionally another name in front of text
 def format_print(s: str, opt=""):
-    if opt == "":
-        print(f"{date_time()}> {s}")
-    else:
-        print(f"{date_time()}> ({opt}) {s}")
+    with print_lock:
+        if opt == "":
+            print(f"{date_time()}> {s}")
+        else:
+            print(f"{date_time()}> ({opt}) {s}")
 
 
 # ======================================================================================================================

@@ -12,6 +12,8 @@
 import hashlib
 import json
 import socket
+import traceback
+
 import psutil
 import subprocess
 import os.path
@@ -40,6 +42,7 @@ updateTimer = cfg.getVal("update_timer")
 process_name = cfg.getVal("process_name")
 localPowerpoints = os.path.join(cwd, cfg.getVal("local_powerpoints"))
 path_to_powerpoint = os.path.join(cwd, cfg.getVal("local_powerpoints"), powerPoint)
+path_to_show_folder = os.path.join(cwd, cfg.getVal("local_powerpoints"))
 pidFile = cfg.getVal("pid_file")
 respect_pid = cfg.getVal("respect_pid")
 client_name = cfg.getVal("client_name")
@@ -141,22 +144,41 @@ def handle_file(server):
     packet = server.recv(4096).decode()
     Tools.format_print("Receiving packet file")
     filename, filesize = packet.split("<SEPARATOR>")
-    filename = os.path.basename(filename)
+    filename = os.path.join(path_to_show_folder, os.path.basename(filename))
     filesize = int(filesize)
-    Tools.format_print("Opening file")
+    cache = bytearray(filesize)
     total = 0
+    while packet_is_bytes:
+        if total == filesize:
+            break
+        bytes_read = server.recv(4096)
+        if not bytes_read:
+            packet_is_bytes = False
+        # write to the file the bytes we just received
+        cache.extend(bytes_read)
+        total += len(bytes_read)
+
+
+
+
+    Tools.format_print("Opening file")
+
+
+
+
     with open(filename, 'wb') as f:
         while packet_is_bytes:
             if total == filesize:
                 break
-            bytes_read = server.recv(40960)
+            bytes_read = server.recv(4096)
             if not bytes_read:
                 packet_is_bytes = False
             # write to the file the bytes we just received
             f.write(bytes_read)
             total += len(bytes_read)
-            Tools.format_print(f"recieved ({total}/{filesize})")
+            #Tools.format_print(f"recieved ({total}/{filesize})")
     packet_is_bytes = False
+
 
 # handle an incoming packet
 def handle_packet(byte_packet, server):
@@ -243,6 +265,8 @@ else:
 try:
     Tools.format_print(f"Running {projectName}:Client")
     main_loop()
+except:
+    traceback.print_exc()
 finally:
     Tools.format_print("Exiting")
     Tools.format_print(f"Removing pid file: {pidFile}")

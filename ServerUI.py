@@ -5,11 +5,17 @@
 # Description:
 # UI for server
 # ======================================================================================================================
+import os
+import threading
 import tkinter as tk
+from tkinter import ttk
 import time
+
+import ServerConnections
 from ServerConnections import ClientConnection
-from SharedAssets import Tools
+from SharedAssets import Tools, FileTools
 from SharedAssets.ClientList import ClientList
+from SharedAssets.Config import Config
 
 
 # ======================================================================================================================
@@ -27,7 +33,7 @@ class ClientGroup:
         self.client_connection = client_connection
         # label frame
         self.label_frame = tk.LabelFrame(window, text=client_connection.name)
-        self.label_frame.grid(column=1, row=2, sticky="we")
+        self.label_frame.grid(column=0, row=2, sticky="we")
         # Connected
         self.connected = tk.Label(self.label_frame, anchor="w")
         self.connected.grid(column=0, row=row.same(), columnspan=3, sticky="we")
@@ -48,6 +54,12 @@ class ClientGroup:
         # send show
         self.btn_check = tk.Button(self.label_frame, text="send show", command=lambda: self.event_send_show())
         self.btn_check.grid(column=0, row=row.add(), sticky="w")
+        self.send_progress_label = tk.Label(self.label_frame)
+        self.send_progress_label.config(text=f"")
+        self.send_progress_label.grid(column=0, row=row.add(), sticky="w", columnspan=3)
+        self.send_progress = ttk.Progressbar(self.label_frame, orient="horizontal", length=100, mode='determinate')
+        self.send_progress['maximum'] = 100
+        self.send_progress.grid(column=0, row=row.add(), columnspan=3)
 
     def update(self):
         if self.client_connection.connected:
@@ -60,6 +72,8 @@ class ClientGroup:
         else:
             approximate_time = Tools.approximate_time_difference(self.client_connection.show_stop_time)
             self.show_running.config(text=f"Status: Stopped (for {approximate_time})", bg="red")
+        self.send_progress_label.config(text=f"%{self.client_connection.file_send_progress}")
+        self.send_progress['value'] = self.client_connection.file_send_progress
 
     # set grid position
     def set_grid(self, num: int):
@@ -87,8 +101,15 @@ class ClientGroup:
 
     def event_send_show(self):
         if self.client_connection.connected:
-            self.client_connection.send_show("Civic")
-
+            cwd = os.getcwd()
+            dir_path = os.path.dirname(os.path.realpath(__file__))
+            cfg = Config(configFile="servercfg.json", fileDir=os.path.join(dir_path, "Config"))
+            cfg.load()
+            show_folder = os.path.join(cwd, cfg.getVal("power_point_dir"))
+            show_name = FileTools.get_most_recent(show_folder, "ppsx")
+            show_path = os.path.join(show_folder, show_name)
+            new_thread = threading.Thread(target=ServerConnections.ClientConnection.send_file, args=(self.client_connection,show_path))
+            new_thread.start()
 
 # ======================================================================================================================
 # =============================== Main UI ==============================================================================
@@ -101,6 +122,7 @@ class UI:
     client_groups = {}
     client_list = None
     window = None
+    file_cache = None
 
     def __init__(self, window, client_list):
         self.window = window
@@ -110,6 +132,10 @@ class UI:
         self.window.columnconfigure(1, weight=1)
         self.counter = Tools.Counter()
         client_list.subscribe_update("UI")
+        self.label_frame = tk.LabelFrame(window, text="Server")
+        self.label_frame.grid(column=self.counter.add(), row=0, sticky="we")
+        self.most_recent_show = tk.Label(self.label_frame, text="No Loaded Show", anchor="w")
+        self.most_recent_show.grid(column=0, row=0)
 
     def add_client_group(self, client_connection: ClientConnection):
         self.client_groups[client_connection.name] = ClientGroup(self.window, client_connection, self)
@@ -132,6 +158,7 @@ class UI:
             self.client_groups[key].update()
         if self.client_list.is_updated("UI"):
             self.client_change()
+        self.most_recent_show.config(text=f"Latest show: NotProgramed")
 
 
 # ======================================================================================================================

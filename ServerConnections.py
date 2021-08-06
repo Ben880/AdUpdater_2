@@ -1,14 +1,14 @@
-import hashlib
 import json
 import os
 import socket
 import threading
-import datetime as dt
-import tqdm
 
 from SharedAssets import Tools
 from SharedAssets.ClientList import ClientList
 from SharedAssets.Config import Config
+from SharedAssets.FileLoader import FileLoader
+
+SEPARATOR = "<SEPARATOR>"
 
 
 class ClientConnection:
@@ -23,6 +23,7 @@ class ClientConnection:
     show_start_time = ""
     show_stop_time = ""
     show_running = False
+    file_send_progress = 0
 
     def __init__(self, connection, client_list: ClientList):
         self.connection = connection
@@ -31,58 +32,21 @@ class ClientConnection:
         self.cfg = Config(configFile="servercfg.json", fileDir=os.path.join(self.dir_path, "Config"))
         self.cfg.load()
         self.power_point_dir = os.path.join(self.dir_path, self.cfg.getVal("power_point_dir"))
+        self.file_loader = FileLoader()
 
-    def send_show(self, name: str):
-        named_dir = os.path.join(self.power_point_dir, name)
-        versions_dir = os.path.join(named_dir, "Versions")
-        if os.path.isdir(versions_dir):
-            filenames = next(os.walk(versions_dir), (None, None, []))[2]  # [] if no file
-            largest = (0,"")
-            for fname in filenames:
-                slp_ex = fname.split(".")
-                if slp_ex[1] == "ppsx":
-                    spl_t = slp_ex[0].split("-")
-                    time = dt.datetime(int(spl_t[0]),int(spl_t[1]),int(spl_t[2]),int(spl_t[3]),int(spl_t[4])).timestamp()
-                    if time > largest[0]:
-                        largest = (time, fname)
-            Tools.format_print(f"Most recent file: {largest[1]}")
-            self.send_packet("SEND_SHOW_NAME", largest[1])
-            file = os.path.join(versions_dir, largest[1])
-            self.send_packet("SEND_SHOW_SIZE", str(os.path.getsize(file)))
-            filesize = os.path.getsize(file)
-            SEPARATOR = "<SEPARATOR>"
-            self.connection.send(f"{file}{SEPARATOR}{filesize}".encode())
-            total = 0
-            with open(file, "rb") as f:
-                while True:
-                    # read the bytes from the file
-                    bytes_read = f.read(40960)
-                    if not bytes_read:
-                        # file transmitting is done
-                        break
-                    # we use sendall to assure transimission in
-                    # busy networks
-                    self.connection.sendall(bytes_read)
-                    total += len(bytes_read)
-                    Tools.format_print(f"sent ({total}/{filesize})")
+    def send_file(self, file_path):
+        file_name = os.path.basename(file_path)
+        file_size = os.path.getsize(file_path)
+        self.send_packet("SEND_SHOW_NAME", file_name)
+        self.send_packet("SEND_SHOW_SIZE", str(file_size))
+        self.connection.send(f"{file_name}{SEPARATOR}{file_size}".encode())
+        self.file_loader.load_file(file_path)
+        total_chunks = self.file_loader.array_size()
+        for i in range(total_chunks):
+            self.connection.sendall(self.file_loader.get_chunk(i))
+            #Tools.format_print(f"Sending chunk ({i}/{total_chunks})", self.name)
+            self.file_send_progress = int(i/total_chunks*100)
 
-
-            """file = open(os.path.join(versions_dir, largest[1]))
-            f_bytes = file.read(1024)"""
-            """buff = bytes()
-            file = os.path.join(versions_dir, largest[1])
-            
-            with open(file, "rb") as f:
-                while byte := f.read(1):
-                    buff += byte
-                    if len(buff) >= 99000:
-                        self.connection.sendall(buff)
-                        buff = bytes()
-            self.send_packet("SEND_SHOW_END", hashlib.md5("filename.exe").hexdigest())"""
-            """while f_bytes:
-                self.connection.sendall(f_bytes)
-                f_bytes = file.read(1024)
-            file.close()"""
 
     def send_packet(self, rpc: str, data: str):
         s_packet = {"rpc": rpc, "data": data}
@@ -122,7 +86,7 @@ class ClientConnection:
         self.handle_packet(packet)
 
 
-def client_thread(c, client_list: ClientList):
+def __client_thread(c, client_list: ClientList):
     client_connection = ClientConnection(c, client_list)
     try:
         while True:
@@ -148,7 +112,7 @@ def accept_clients(host, port, client_list: ClientList):
         c, addr = s.accept()
         Tools.format_print(f"Connected to: {addr[0]}:{addr[1]}")
         # Start a new thread and return its identifier
-        new_thread = threading.Thread(target=client_thread, args=(c, client_list))
+        new_thread = threading.Thread(target=__client_thread, args=(c, client_list))
         new_thread.start()
     s.close()
 
