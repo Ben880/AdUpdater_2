@@ -5,39 +5,31 @@
 # Description:
 # Handles connection with ad clients
 # ======================================================================================================================
-import os
+import time
+import threading
+
 from ServerConnections import accept_clients
 from ServerUI import server_ui_thread as ui_thread
 from SharedAssets import Tools
-import threading
-from SharedAssets.ClientList import ClientList
-from SharedAssets.Config import Config as Config
-# ======================================================================================================================
-# =============================== create vars ==========================================================================
-# ======================================================================================================================
-cwd = os.getcwd()
-dir_path = os.path.dirname(os.path.realpath(__file__))
-cfg = Config(configFile="servercfg.json", fileDir=os.path.join(dir_path, "Config"))
-cfg.load()
+from SharedAssets import ServerSingletons as Singletons
 # ======================================================================================================================
 # =============================== load cfg vars ========================================================================
 # ======================================================================================================================
-host = cfg.getVal("host")
-port = cfg.getVal("port") # Port to listen on (non-privileged ports are > 1023)
-projectName = cfg.getVal("project_name")
-client_list = ClientList()
+host = Singletons.config.getVal("host")
+port = Singletons.config.getVal("port")  # Port to listen on (non-privileged ports are > 1023)
+projectName = Singletons.config.getVal("project_name")
 # ======================================================================================================================
 # =============================== main logic ===========================================================================
 # ======================================================================================================================
-Tools.format_print(f"Running {projectName}:Client")
+Tools.format_print(f"Running {projectName}: Server")
 # start the ui thread
-ui = threading.Thread(target=ui_thread, args=(client_list,))
+ui = threading.Thread(target=ui_thread, args=())
 ui.start()
 # start the server thread
-server = threading.Thread(target=accept_clients, args=(host, port, client_list,))
+server = threading.Thread(target=accept_clients, args=(host, port))
 server.start()
-# main loop
+# left empty for future use
 MAINLOOP = True
 while MAINLOOP:
-    pass
+    time.sleep(10)
 

@@ -16,6 +16,7 @@ from ServerConnections import ClientConnection
 from SharedAssets import Tools, FileTools
 from SharedAssets.ClientList import ClientList
 from SharedAssets.Config import Config
+from SharedAssets import ServerSingletons as Singletons
 
 
 # ======================================================================================================================
@@ -101,14 +102,10 @@ class ClientGroup:
 
     def event_send_show(self):
         if self.client_connection.connected:
-            cwd = os.getcwd()
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-            cfg = Config(configFile="servercfg.json", fileDir=os.path.join(dir_path, "Config"))
-            cfg.load()
-            show_folder = os.path.join(cwd, cfg.getVal("power_point_dir"))
-            show_name = FileTools.get_most_recent(show_folder, "ppsx")
-            show_path = os.path.join(show_folder, show_name)
-            new_thread = threading.Thread(target=ServerConnections.ClientConnection.send_file, args=(self.client_connection,show_path))
+            show_name = FileTools.get_most_recent(Singletons.power_point_dir, "ppsx")
+            show_path = os.path.join(Singletons.power_point_dir, show_name)
+            target_method = ServerConnections.ClientConnection.send_file
+            new_thread = threading.Thread(target=target_method, args=(self.client_connection,show_path))
             new_thread.start()
 
 # ======================================================================================================================
@@ -124,14 +121,14 @@ class UI:
     window = None
     file_cache = None
 
-    def __init__(self, window, client_list):
+    def __init__(self, window):
         self.window = window
-        self.client_list = client_list
+        self.client_list = Singletons.client_list
         self.window.title('Ad Updater')
         self.window.geometry("300x400")
         self.window.columnconfigure(1, weight=1)
         self.counter = Tools.Counter()
-        client_list.subscribe_update("UI")
+        self.client_list.subscribe_update("UI")
         self.label_frame = tk.LabelFrame(window, text="Server")
         self.label_frame.grid(column=self.counter.add(), row=0, sticky="we")
         self.most_recent_show = tk.Label(self.label_frame, text="No Loaded Show", anchor="w")
@@ -166,9 +163,9 @@ class UI:
 # ======================================================================================================================
 
 # function to be called to create new thread
-def server_ui_thread(client_list: ClientList):
+def server_ui_thread():
     window = tk.Tk()
-    ui = UI(window, client_list)
+    ui = UI(window)
     while True:
         ui.update()
         window.update()

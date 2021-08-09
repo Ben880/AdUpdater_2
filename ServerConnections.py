@@ -1,3 +1,10 @@
+# ======================================================================================================================
+# By: Benjamin Wilcox (bwilcox@ltu.edu),
+# AdUpdater_2- 6/2/2021
+# ======================================================================================================================
+# Description:
+# Handles connections to clients
+# ======================================================================================================================
 import json
 import os
 import socket
@@ -7,6 +14,7 @@ from SharedAssets import Tools
 from SharedAssets.ClientList import ClientList
 from SharedAssets.Config import Config
 from SharedAssets.FileLoader import FileLoader
+from SharedAssets import ServerSingletons as Singletons
 
 SEPARATOR = "<SEPARATOR>"
 
@@ -25,13 +33,10 @@ class ClientConnection:
     show_running = False
     file_send_progress = 0
 
-    def __init__(self, connection, client_list: ClientList):
+    def __init__(self, connection):
         self.connection = connection
-        self.client_list = client_list
-        self.dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.cfg = Config(configFile="servercfg.json", fileDir=os.path.join(self.dir_path, "Config"))
-        self.cfg.load()
-        self.power_point_dir = os.path.join(self.dir_path, self.cfg.getVal("power_point_dir"))
+        self.client_list = Singletons.client_list
+        self.power_point_dir = Singletons.power_point_dir
         self.file_loader = FileLoader()
 
     def send_file(self, file_path):
@@ -86,8 +91,8 @@ class ClientConnection:
         self.handle_packet(packet)
 
 
-def __client_thread(c, client_list: ClientList):
-    client_connection = ClientConnection(c, client_list)
+def __client_thread(connection):
+    client_connection = ClientConnection(connection)
     try:
         while True:
             client_connection.update()
@@ -95,24 +100,20 @@ def __client_thread(c, client_list: ClientList):
         Tools.format_print(f"ConnectionResetError", client_connection.name)
         client_connection.connected = False
     finally:
-        client_list.remove_client(client_connection.name)
-        c.close()
+        Singletons.client_list.remove_client(client_connection.name)
+        connection.close()
 
 
-def accept_clients(host, port, client_list: ClientList):
+def accept_clients(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((host, port))
-    Tools.format_print(f"Socket bound to port: {port}")
     s.listen(5)
     Tools.format_print(f"Socket is listening on port: {port}")
     MAINLOOP = True
-    # start server
     while MAINLOOP:
-        # establish connection with client
-        c, addr = s.accept()
+        connection, addr = s.accept()
         Tools.format_print(f"Connected to: {addr[0]}:{addr[1]}")
-        # Start a new thread and return its identifier
-        new_thread = threading.Thread(target=__client_thread, args=(c, client_list))
+        new_thread = threading.Thread(target=__client_thread, args=(connection,))
         new_thread.start()
     s.close()
 
